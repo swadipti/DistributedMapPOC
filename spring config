@@ -1,0 +1,88 @@
+<!-- Performance log using spring config -->
+
+<bean id="performanceMonitor" class="org.springframework.aop.interceptor.PerformanceMonitorInterceptor">
+		<property name="LogTargetClassInvocation" value="true"/>
+</bean>
+	
+<aop:config>
+	<aop:pointcut id="allServiceMethods"
+		      expression="execution(* com.abc.service.*.*Controller.*(..))"/>
+	<aop:advisor pointcut-ref="allServiceMethods" advice-ref="performanceMonitor"/>
+</aop:config>	
+
+
+<!-- using scoped proxy for session scope -->
+
+<bean id="mockRequests" class="com.abc.SomeClass" scope="session" lazy-init="true">
+		<aop:scoped-proxy/>
+</bean>
+
+
+<!-- declaring string variable in spring context -->
+<bean id="appId" class="java.lang.String">
+              <constructor-arg value="1111"/>
+       </bean>
+
+
+<!-- Using cron expression -->
+
+<bean id="cronJobRunner" class="com.xyz.common.util.CronJobRunner"/>
+
+ <task:scheduled-tasks>
+	<task:scheduled ref="cronJobRunner" method="callTask" cron="#{searchReIndexCron}"></task:scheduled><!--  Scheduler to run re-indexing for CFC search -->
+</task:scheduled-tasks>
+
+<bean id="searchReIndexCron" factory-bean="com.abc.Properties" factory-method="getProperty">
+	<constructor-arg type="java.lang.String" value="SEARCH.INDEX.CRON" />
+	<constructor-arg type="java.lang.String" value="0 0/30 * 1/1 * ?" /> 
+</bean>
+
+
+<!-- Spring webservice call -->
+<bean id="app.service.messageSender" class="org.springframework.ws.transport.http.CommonsHttpMessageSender" lazy-init="true">
+		<constructor-arg>
+			<bean class="org.apache.commons.httpclient.HttpClient">
+				<constructor-arg>
+					<bean class="org.apache.commons.httpclient.MultiThreadedHttpConnectionManager">
+						<property name="params">
+							<bean
+								class="org.apache.commons.httpclient.params.HttpConnectionManagerParams">
+								<property name="defaultMaxConnectionsPerHost" value="50"/>
+								<property name="maxTotalConnections" value="50"/>
+								<!-- Performance enhancement -->
+								<property name="staleCheckingEnabled" value="false"/>
+								<!-- Performance enhancement -->
+								<property name="tcpNoDelay" value="false"/>
+							</bean>
+						</property>
+					</bean>
+				</constructor-arg>
+			</bean>
+		</constructor-arg>
+	</bean>
+
+	<!--
+	    NOTE: This WebServiceMessageFactory bean is the standard bean used by web service components within the project.	   
+	    -->
+	<bean id="app.service.webServiceMessageFactory" class="org.springframework.ws.soap.axiom.AxiomSoapMessageFactory" lazy-init="true">
+		<!--
+		NOTE: Payload caching is currently using the default "true" value due to the fact that setting it to "false"
+		means that the payload may only be read once. If an interceptor or logging component reads the message before
+		the code acts upon the data, the message will contain null elements and will fail to work properly.		
+		<property name="payloadCaching" value="true" />
+		-->
+		<property name="attachmentCaching" value="false"/>
+	</bean>
+
+	<!--
+	    NOTE: This WebServiceMessageFactory bean is the bean used by UDE components within the project.	    
+	    -->
+	<bean id="app.service.webServiceMessageFactory.soap12" class="org.springframework.ws.soap.axiom.AxiomSoapMessageFactory" lazy-init="true">
+		<!--
+		NOTE: Payload caching using default value (see notes above).		
+		<property name="payloadCaching" value="true" />
+		-->
+		<property name="soapVersion">
+			<util:constant static-field="org.springframework.ws.soap.SoapVersion.SOAP_12"/>
+		</property>
+	</bean>
